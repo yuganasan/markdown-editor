@@ -1,0 +1,1014 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>MD</title>
+<style>
+:root{
+  --bg:#ffffff; --panel:#fbfbfc; --bar:#f4f5f7; --text:#1b1f24; --muted:#6b7280;
+  --accent:#2563eb; --border:#e4e6ea; --code-bg:#f3f4f6; --sel:#cfe0ff; --mark:#fde68a;
+  --shadow:0 1px 2px rgba(0,0,0,.06);
+}
+:root[data-theme="dark"]{
+  --bg:#0f1115; --panel:#121419; --bar:#15181e; --text:#d6dae1; --muted:#858d9b;
+  --accent:#6aa3ff; --border:#242933; --code-bg:#191d25; --sel:#28405f; --mark:#5a4a12;
+  --shadow:none;
+}
+@media (prefers-color-scheme:dark){
+  :root:not([data-theme="light"]){
+    --bg:#0f1115; --panel:#121419; --bar:#15181e; --text:#d6dae1; --muted:#858d9b;
+    --accent:#6aa3ff; --border:#242933; --code-bg:#191d25; --sel:#28405f; --mark:#5a4a12;
+    --shadow:none;
+  }
+}
+*{box-sizing:border-box}
+html,body{height:100%}
+body{
+  margin:0; background:var(--bg); color:var(--text);
+  font:14px/1.5 -apple-system,"Segoe UI",Roboto,Inter,system-ui,sans-serif;
+  display:grid; grid-template-rows:auto 1fr auto; height:100dvh; overflow:hidden;
+  -webkit-font-smoothing:antialiased;
+}
+::selection{background:var(--sel)}
+
+/* ---------- toolbar ---------- */
+#bar{
+  display:flex; align-items:center; gap:4px; padding:6px 8px;
+  background:var(--bar); border-bottom:1px solid var(--border); user-select:none; flex-wrap:nowrap; overflow:hidden;
+}
+#bar .sp{flex:1}
+#bar .div{width:1px; height:20px; background:var(--border); margin:0 4px; flex:none}
+button{
+  font:inherit; color:var(--text); background:transparent; border:1px solid transparent;
+  border-radius:6px; padding:4px 8px; cursor:pointer; line-height:1.3; white-space:nowrap;
+}
+button:hover{background:var(--bg); border-color:var(--border)}
+button:active{transform:translateY(1px)}
+button.on{background:var(--bg); border-color:var(--border); color:var(--accent)}
+.seg{display:flex; background:var(--bg); border:1px solid var(--border); border-radius:7px; padding:2px; gap:2px; flex:none}
+.seg button{padding:3px 10px; border-radius:5px; font-size:12.5px; color:var(--muted)}
+.seg button.on{background:var(--bar); color:var(--text); border-color:transparent}
+#name{
+  font-size:13px; color:var(--muted); max-width:34ch; overflow:hidden; text-overflow:ellipsis;
+  white-space:nowrap; padding:0 6px;
+}
+#name b{color:var(--text); font-weight:600}
+#dot{color:var(--accent); opacity:0; transition:opacity .15s}
+#dot.on{opacity:1}
+
+/* ---------- panes ---------- */
+#main{display:flex; min-height:0; position:relative}
+#edPane{flex:0 0 var(--split,50%); min-width:0; display:flex; position:relative}
+#pvPane{flex:1 1 0; min-width:0; overflow:hidden; background:var(--panel); border-left:1px solid var(--border)}
+#grip{
+  position:absolute; left:calc(var(--split,50%) - 3px); top:0; width:7px; height:100%;
+  cursor:col-resize; z-index:5;
+}
+#grip:hover{background:linear-gradient(90deg,transparent 2px,var(--accent) 2px,var(--accent) 5px,transparent 5px); opacity:.5}
+body.m-edit #pvPane,body.m-edit #grip{display:none}
+body.m-edit #edPane{flex:1 1 auto}
+body.m-view #edPane,body.m-view #grip{display:none}
+body.m-view #pvPane{border-left:none}
+
+#ed{
+  width:100%; height:100%; resize:none; border:0; outline:0; padding:18px 20px 40vh;
+  background:var(--bg); color:var(--text); tab-size:2;
+  font:13.5px/1.65 ui-monospace,"Cascadia Mono",Consolas,"SF Mono",Menlo,monospace;
+  font-variant-ligatures:none; overflow-y:auto; overflow-wrap:break-word;
+}
+#ed::placeholder{color:var(--muted)}
+
+/* ---------- preview ---------- */
+#pv{height:100%; overflow-y:auto; padding:18px 24px 40vh; max-width:none}
+#pv>*{max-width:78ch; margin-left:auto; margin-right:auto}
+#pv.virtual>*{content-visibility:auto; contain-intrinsic-size:auto 2.4em}
+#pv h1,#pv h2,#pv h3,#pv h4,#pv h5,#pv h6{line-height:1.25; margin:1.4em 0 .5em; font-weight:650}
+#pv>h1:first-child,#pv>h2:first-child{margin-top:.2em}
+#pv h1{font-size:1.85em; padding-bottom:.25em; border-bottom:1px solid var(--border)}
+#pv h2{font-size:1.45em; padding-bottom:.2em; border-bottom:1px solid var(--border)}
+#pv h3{font-size:1.2em} #pv h4{font-size:1.05em}
+#pv h5{font-size:.95em} #pv h6{font-size:.9em; color:var(--muted)}
+#pv p{margin:.75em 0}
+#pv a{color:var(--accent); text-decoration:none}
+#pv a:hover{text-decoration:underline}
+#pv ul,#pv ol{margin:.6em 0; padding-left:1.6em}
+#pv li{margin:.2em 0}
+#pv li>ul,#pv li>ol{margin:.2em 0}
+#pv li.task{list-style:none; margin-left:-1.35em}
+#pv li.task input{margin-right:.5em; accent-color:var(--accent)}
+#pv blockquote{
+  margin:.8em 0; padding:.1em 1em; border-left:3px solid var(--border); color:var(--muted);
+}
+#pv blockquote>*:first-child{margin-top:.4em}
+#pv blockquote>*:last-child{margin-bottom:.4em}
+#pv hr{border:0; border-top:1px solid var(--border); margin:1.6em auto}
+#pv code{
+  background:var(--code-bg); padding:.15em .38em; border-radius:4px; font-size:.88em;
+  font-family:ui-monospace,"Cascadia Mono",Consolas,Menlo,monospace;
+}
+#pv pre{
+  background:var(--code-bg); border:1px solid var(--border); border-radius:8px;
+  padding:12px 14px; overflow-x:auto; margin:.9em auto; position:relative;
+}
+#pv pre code{background:none; padding:0; font-size:.86em; line-height:1.55}
+#pv pre[data-lang]:not([data-lang=""])::before{
+  content:attr(data-lang); position:absolute; top:6px; right:10px;
+  font-size:10.5px; color:var(--muted); letter-spacing:.04em; text-transform:uppercase;
+}
+#pv pre .cp{
+  position:absolute; top:4px; right:4px; opacity:0; font-size:11px; padding:2px 7px;
+  background:var(--bg); border:1px solid var(--border); border-radius:5px; transition:opacity .12s;
+}
+#pv pre:hover .cp{opacity:1}
+#pv table{border-collapse:collapse; margin:.9em auto; display:block; overflow-x:auto; width:fit-content; max-width:78ch}
+#pv th,#pv td{border:1px solid var(--border); padding:6px 11px}
+#pv th{background:var(--code-bg); font-weight:600}
+#pv img{max-width:100%; border-radius:6px}
+#pv mark{background:var(--mark); color:inherit; border-radius:3px; padding:0 .15em}
+#pv del{color:var(--muted)}
+#pv kbd{border:1px solid var(--border); border-bottom-width:2px; border-radius:4px; padding:.05em .4em; font-size:.85em}
+
+/* ---------- status ---------- */
+#status{
+  display:flex; align-items:center; gap:14px; padding:4px 12px; font-size:12px; color:var(--muted);
+  background:var(--bar); border-top:1px solid var(--border); user-select:none; white-space:nowrap; overflow:hidden;
+}
+#status .sp{flex:1}
+#toast{
+  position:fixed; bottom:34px; left:50%; transform:translate(-50%,12px); opacity:0; pointer-events:none;
+  background:var(--text); color:var(--bg); padding:6px 14px; border-radius:20px; font-size:12.5px;
+  transition:opacity .18s,transform .18s; z-index:50;
+}
+#toast.on{opacity:.94; transform:translate(-50%,0)}
+@media (max-width:760px){
+  #bar .lbl{display:none}
+  #pv,#ed{padding-left:14px; padding-right:14px}
+}
+</style>
+</head>
+<body class="m-split">
+
+<div id="bar">
+  <button id="bNew" title="New (Ctrl+N)">New</button>
+  <button id="bOpen" title="Open (Ctrl+O)">Open</button>
+  <button id="bSave" title="Save (Ctrl+S)">Save</button>
+  <button id="bExp" title="Export as HTML">Export</button>
+  <span class="div"></span>
+  <button data-fmt="b" title="Bold (Ctrl+B)"><b>B</b></button>
+  <button data-fmt="i" title="Italic (Ctrl+I)"><i>I</i></button>
+  <button data-fmt="h" title="Heading">H</button>
+  <button data-fmt="k" title="Link (Ctrl+K)">🔗</button>
+  <button data-fmt="c" title="Code">&lt;/&gt;</button>
+  <button data-fmt="q" title="Quote">❝</button>
+  <button data-fmt="l" title="List">☰</button>
+  <span class="sp"></span>
+  <span id="name"><b>untitled.md</b><span id="dot"> ●</span></span>
+  <div class="seg" id="modes">
+    <button data-mode="edit">Edit</button>
+    <button data-mode="split" class="on">Split</button>
+    <button data-mode="view">Read</button>
+  </div>
+  <span class="div"></span>
+  <button id="bTheme" title="Toggle theme">◐</button>
+</div>
+
+<div id="main">
+  <div id="edPane"><textarea id="ed" spellcheck="false" autocomplete="off" autocapitalize="off"
+    placeholder="# Start writing…"></textarea></div>
+  <div id="grip"></div>
+  <div id="pvPane"><div id="pv"></div></div>
+</div>
+
+<div id="status">
+  <span id="sWords">0 words</span>
+  <span id="sChars">0 chars</span>
+  <span id="sLines">1 line</span>
+  <span id="sRead">0 min</span>
+  <span class="sp"></span>
+  <span id="sHint">Ctrl+S save · Ctrl+O open · Tab indent</span>
+</div>
+<div id="toast"></div>
+<input type="file" id="fi" accept=".md,.markdown,.mdown,.mkd,.txt,text/*" hidden>
+
+<script>
+"use strict";
+/* =========================================================================
+   Markdown engine - block splitter + incremental renderer.
+     * splitBlocks() is one linear scan over lines, no whole-doc backtracking.
+     * render() diffs new blocks vs old by common prefix/suffix, so a
+       keystroke re-renders one block and touches one DOM node.
+     * renderBlock() memoises raw-block -> html: retyping and undo are free.
+   ========================================================================= */
+
+var RE_FENCE = /^ {0,3}(`{3,}|~{3,})\s*([^`\n]*)$/;
+var RE_FEND  = /^ {0,3}(`{3,}|~{3,})\s*$/;
+var RE_HEAD  = /^ {0,3}(#{1,6})(?:[ \t]+([^\n]*?))?[ \t]*#*[ \t]*$/;
+var RE_HR    = /^ {0,3}(?:(?:\*[ \t]*){3,}|(?:-[ \t]*){3,}|(?:_[ \t]*){3,})$/;
+var RE_QUOTE = /^ {0,3}>/;
+var RE_ULI   = /^([ \t]*)([-*+])([ \t]+)(.*)$/;
+var RE_OLI   = /^([ \t]*)(\d{1,9})([.)])([ \t]+)(.*)$/;
+var RE_TSEP  = /^ {0,3}\|?[ \t]*:?-+:?[ \t]*(\|[ \t]*:?-+:?[ \t]*)*\|?[ \t]*$/;
+var RE_SETX  = /^ {0,3}(=+|-+)[ \t]*$/;
+var RE_IND   = /^(?: {4}|\t)/;
+
+var AMP = /[&<>]/g, AMPM = {"&":"&amp;","<":"&lt;",">":"&gt;"};
+function esc(s){ return s.replace(AMP, function(c){ return AMPM[c]; }); }
+function attr(s){ return String(s).replace(/"/g,"&quot;").replace(/</g,"&lt;"); }
+function url(u){
+  u = String(u).trim();
+  if(/^(javascript|vbscript|file):/i.test(u)) return "#";
+  if(/^data:/i.test(u) && !/^data:image\//i.test(u)) return "#";
+  return u;
+}
+function indentOf(l){
+  var n=0;
+  for(var i=0;i<l.length;i++){ var c=l.charCodeAt(i);
+    if(c===32) n++; else if(c===9) n+=4; else break; }
+  return n;
+}
+function dedent(l,n){
+  var i=0,col=0;
+  while(i<l.length && col<n){ var c=l.charCodeAt(i);
+    if(c===32){col++;i++;} else if(c===9){col+=4;i++;} else break; }
+  return l.slice(i);
+}
+function isList(l){ return !RE_HR.test(l) && (RE_OLI.test(l) || RE_ULI.test(l)); }
+function isTable(lines,i){
+  return lines[i].indexOf("|")>=0 && i+1<lines.length && RE_TSEP.test(lines[i+1])
+         && lines[i+1].indexOf("-")>=0;
+}
+
+function splitBlocks(src){
+  var lines = src.split("\n"), n = lines.length, out = [], i = 0;
+  while(i<n){
+    if(!lines[i].trim()){ i++; continue; }
+    var start = i, line = lines[i], m;
+    if((m = RE_FENCE.exec(line))){
+      var ch = m[1].charAt(0), len = m[1].length; i++;
+      while(i<n){
+        var c = RE_FEND.exec(lines[i]); i++;
+        if(c && c[1].charAt(0)===ch && c[1].length>=len) break;
+      }
+    } else if(RE_HR.test(line) || RE_HEAD.test(line)){
+      i++;
+    } else if(RE_QUOTE.test(line)){
+      i++;
+      while(i<n && lines[i].trim() && !RE_FENCE.test(lines[i]) && !RE_HR.test(lines[i])) i++;
+    } else if(isList(line)){
+      var ord0 = RE_OLI.test(line), lbase = indentOf(line);
+      i++;
+      while(i<n){
+        var l = lines[i];
+        if(!l.trim()){
+          var j=i; while(j<n && !lines[j].trim()) j++;
+          if(j>=n) break;
+          /* keep going only for indented continuation, or a same-kind item */
+          if(indentOf(lines[j]) >= lbase+2){ i=j; continue; }
+          if(isList(lines[j]) && RE_OLI.test(lines[j]) === ord0){ i=j; continue; }
+          break;
+        }
+        if(RE_HR.test(l) || RE_HEAD.test(l)) break;
+        /* a bullet list and a numbered list at the same level are two lists */
+        if(isList(l) && indentOf(l) <= lbase+1 && RE_OLI.test(l) !== ord0) break;
+        i++;
+      }
+    } else if(isTable(lines,i)){
+      i+=2;
+      while(i<n && lines[i].trim() && lines[i].indexOf("|")>=0) i++;
+    } else if(RE_IND.test(line)){
+      i++;
+      while(i<n && (RE_IND.test(lines[i]) || !lines[i].trim())) i++;
+      while(i>start+1 && !lines[i-1].trim()) i--;
+    } else {
+      i++;
+      while(i<n){
+        var p = lines[i];
+        if(!p.trim()) break;
+        if(RE_SETX.test(p)){ i++; break; }
+        if(RE_FENCE.test(p) || RE_HEAD.test(p) || RE_HR.test(p) || RE_QUOTE.test(p)
+           || isList(p) || isTable(lines,i)) break;
+        i++;
+      }
+    }
+    out.push(lines.slice(start,i).join("\n"));
+  }
+  return out;
+}
+
+var PH = String.fromCharCode(0xE000);
+var RE_REST = new RegExp(PH + "(\\d+)" + PH, "g");
+var A_OPEN = '<a target="_blank" rel="noopener" href="';
+
+function inline(src){
+  var st = [];
+  function hold(h){ st.push(h); return PH + (st.length-1) + PH; }
+  var s = esc(src);
+  s = s.replace(/(`+)([\s\S]*?)\1/g, function(m,f,c){
+    if(c.length>1 && c.charAt(0)===" " && c.charAt(c.length-1)===" ") c = c.slice(1,-1);
+    return hold("<code>"+c+"</code>");
+  });
+  s = s.replace(/\\([\\`*_{}\[\]()#+\-.!>~|=])/g, function(m,c){ return hold(esc(c)); });
+  s = s.replace(/!\[([^\]]*)\]\([ \t]*([^\s)]+)(?:[ \t]+"([^"]*)")?[ \t]*\)/g,
+    function(m,alt,href,t){
+      return hold('<img loading="lazy" src="'+attr(url(href))+'" alt="'+attr(alt)+'"'+
+                  (t ? ' title="'+attr(t)+'"' : "")+'>');
+    });
+  s = s.replace(/\[([^\]]*)\]\([ \t]*([^\s)]*)(?:[ \t]+"([^"]*)")?[ \t]*\)/g,
+    function(m,txt,href,t){
+      return hold(A_OPEN+attr(url(href))+'"'+(t ? ' title="'+attr(t)+'"' : "")+">")
+             + txt + hold("</a>");
+    });
+  s = s.replace(/&lt;((?:https?|mailto):[^\s&]+)&gt;/g, function(m,u){
+    return hold(A_OPEN+attr(url(u))+'">') + u + hold("</a>");
+  });
+  s = s.replace(/(^|[\s(])(https?:\/\/[^\s<>()"]+[^\s<>()".,;:!?])/g, function(m,p,u){
+    return p + hold(A_OPEN+attr(url(u))+'">') + u + hold("</a>");
+  });
+  s = s.replace(/\*\*\*(?!\s)([\s\S]+?)\*\*\*/g, "<strong><em>$1</em></strong>");
+  s = s.replace(/\*\*(?!\s)([\s\S]+?)\*\*/g, "<strong>$1</strong>");
+  s = s.replace(/(^|[^\w\\])__(?!\s)([\s\S]+?)__(?!\w)/g, "$1<strong>$2</strong>");
+  s = s.replace(/\*(?![\s*])([\s\S]*?)\*/g, "<em>$1</em>");
+  s = s.replace(/(^|[^\w\\])_(?!\s)([\s\S]*?)_(?!\w)/g, "$1<em>$2</em>");
+  s = s.replace(/~~([\s\S]+?)~~/g, "<del>$1</del>");
+  s = s.replace(/==([\s\S]+?)==/g, "<mark>$1</mark>");
+  s = s.replace(/ {2,}\n/g, "<br>\n");
+  RE_REST.lastIndex = 0;
+  return s.replace(RE_REST, function(m,i){ return st[+i]; });
+}
+
+var cache = new Map(), CACHE_MAX = 4000, depth = 0;
+var RE_SLUG = /[^\wÀ-￿ \-]/g;
+
+function slug(s){
+  return s.toLowerCase().replace(/&[a-z]+;/g,"").replace(RE_SLUG,"")
+          .trim().replace(/\s+/g,"-").slice(0,64);
+}
+function renderBlock(raw){
+  var h = cache.get(raw);
+  if(h !== undefined) return h;
+  h = build(raw);
+  if(cache.size >= CACHE_MAX) cache.clear();
+  cache.set(raw,h);
+  return h;
+}
+function renderBlocks(src){
+  if(depth > 8) return "<p>"+inline(src)+"</p>";
+  depth++;
+  var b = splitBlocks(src), out = "";
+  for(var i=0;i<b.length;i++) out += renderBlock(b[i]);
+  depth--;
+  return out;
+}
+function codeHtml(lang, text){
+  return '<pre data-lang="'+attr(lang)+'"><button class="cp">copy</button><code>'+
+         esc(text)+"</code></pre>";
+}
+function build(raw){
+  var lines = raw.split("\n"), first = lines[0], m, i;
+  if((m = RE_FENCE.exec(first))){
+    var body = lines.slice(1);
+    if(body.length && RE_FEND.test(body[body.length-1])) body.pop();
+    return codeHtml((m[2]||"").trim().split(/\s+/)[0], body.join("\n"));
+  }
+  if(RE_HR.test(first)) return "<hr>";
+  if((m = RE_HEAD.exec(first))){
+    var t = m[2]||"", lv = m[1].length;
+    return "<h"+lv+' id="'+attr(slug(t))+'">'+inline(t)+"</h"+lv+">";
+  }
+  if(lines.length>1 && RE_SETX.test(lines[lines.length-1])){
+    var lv2 = lines[lines.length-1].trim().charAt(0)==="=" ? 1 : 2;
+    var txt = lines.slice(0,-1).join("\n");
+    return "<h"+lv2+' id="'+attr(slug(txt))+'">'+inline(txt)+"</h"+lv2+">";
+  }
+  if(RE_QUOTE.test(first)){
+    var inner = [];
+    for(i=0;i<lines.length;i++) inner.push(lines[i].replace(/^ {0,3}> ?/,""));
+    return "<blockquote>"+renderBlocks(inner.join("\n"))+"</blockquote>";
+  }
+  if(isList(first)) return renderList(lines);
+  if(isTable(lines,0)) return renderTable(lines);
+  if(RE_IND.test(first)){
+    var code = [];
+    for(i=0;i<lines.length;i++) code.push(lines[i].replace(RE_IND,""));
+    return codeHtml("", code.join("\n"));
+  }
+  return "<p>"+inline(raw)+"</p>";
+}
+
+function itemHtml(src, tight){
+  var b = splitBlocks(src);
+  if(!b.length) return "";
+  var out = "";
+  for(var k=0;k<b.length;k++){
+    var h = renderBlock(b[k]);
+    if(k===0 && tight && h.slice(0,3)==="<p>" && h.slice(-4)==="</p>") out += h.slice(3,-4);
+    else out += h;
+  }
+  return out;
+}
+function renderList(lines){
+  var om0 = RE_OLI.exec(lines[0]);
+  var ordered = !!om0;
+  var base = indentOf(lines[0]);
+  var start = ordered ? parseInt(om0[2],10) : 1;
+  var items = [], cur = null, loose = false, blank = false, i;
+  for(i=0;i<lines.length;i++){
+    var l = lines[i];
+    if(!l.trim()){ if(cur) blank = true; continue; }
+    var ind = indentOf(l), om = null, um = null;
+    if(ind <= base+1 && !RE_HR.test(l)){ om = RE_OLI.exec(l); if(!om) um = RE_ULI.exec(l); }
+    if(om || um){
+      if(cur && blank) loose = true;
+      blank = false;
+      cur = {
+        src: [ om ? om[5] : um[4] ],
+        ci: ind + (om ? om[2].length+om[3].length+om[4].length : um[2].length+um[3].length)
+      };
+      items.push(cur);
+    } else if(cur){
+      if(blank){ cur.src.push(""); loose = true; blank = false; }
+      cur.src.push(dedent(l, cur.ci));
+    }
+  }
+  var html = ordered ? ("<ol"+(start!==1 ? ' start="'+start+'"' : "")+">") : "<ul>";
+  for(i=0;i<items.length;i++){
+    var src = items[i].src.join("\n");
+    var tm = /^\[([ xX])\][ \t]+/.exec(src), cls = "", box = "";
+    if(tm){
+      src = src.slice(tm[0].length);
+      cls = ' class="task"';
+      box = '<input type="checkbox" disabled'+(tm[1]===" " ? "" : " checked")+"> ";
+    }
+    html += "<li"+cls+">"+box+itemHtml(src, !loose)+"</li>";
+  }
+  return html + (ordered ? "</ol>" : "</ul>");
+}
+
+function splitRow(s){
+  var out = [], cur = "", i = 0;
+  while(i < s.length){
+    var c = s.charAt(i);
+    if(c==="\\" && s.charAt(i+1)==="|"){ cur += "|"; i += 2; continue; }
+    if(c==="`"){
+      var j = s.indexOf("`", i+1);
+      if(j<0) j = s.length-1;
+      cur += s.slice(i, j+1); i = j+1; continue;
+    }
+    if(c==="|"){ out.push(cur); cur = ""; i++; continue; }
+    cur += c; i++;
+  }
+  out.push(cur);
+  for(i=0;i<out.length;i++) out[i] = out[i].trim();
+  return out;
+}
+function trimPipes(l){
+  var s = l.trim();
+  if(s.charAt(0)==="|") s = s.slice(1);
+  if(s.charAt(s.length-1)==="|" && s.charAt(s.length-2)!=="\\") s = s.slice(0,-1);
+  return s;
+}
+function renderTable(lines){
+  var head = splitRow(trimPipes(lines[0]));
+  var seps = splitRow(trimPipes(lines[1]));
+  var al = [], i, r;
+  for(i=0;i<seps.length;i++){
+    var L = seps[i].charAt(0)===":", R = seps[i].charAt(seps[i].length-1)===":";
+    al[i] = L&&R ? ' style="text-align:center"' : R ? ' style="text-align:right"'
+          : L ? ' style="text-align:left"' : "";
+  }
+  var h = "<table><thead><tr>";
+  for(i=0;i<head.length;i++) h += "<th"+(al[i]||"")+">"+inline(head[i])+"</th>";
+  h += "</tr></thead><tbody>";
+  for(r=2;r<lines.length;r++){
+    if(!lines[r].trim()) continue;
+    var cs = splitRow(trimPipes(lines[r]));
+    h += "<tr>";
+    for(i=0;i<head.length;i++) h += "<td"+(al[i]||"")+">"+inline(cs[i]||"")+"</td>";
+    h += "</tr>";
+  }
+  return h + "</tbody></table>";
+}
+
+/* =========================== app =========================== */
+var $ = function(id){ return document.getElementById(id); };
+var ed = $("ed"), pv = $("pv"), main = $("main"), nameEl = $("name"), dot = $("dot");
+var prevBlocks = [], tpl = document.createElement("template");
+
+/* Incremental DOM update: only blocks that actually changed are rebuilt. */
+function render(text){
+  var blocks = splitBlocks(text), old = prevBlocks, kids = pv.children;
+  var min = Math.min(blocks.length, old.length), a = 0, b = 0, k;
+  while(a < min && blocks[a] === old[a]) a++;
+  while(b < min - a && blocks[blocks.length-1-b] === old[old.length-1-b]) b++;
+  for(k = old.length - b - 1; k >= a; k--) pv.removeChild(kids[k]);
+  var stop = blocks.length - b;
+  if(stop > a){
+    var frag = document.createDocumentFragment();
+    for(k = a; k < stop; k++){
+      tpl.innerHTML = renderBlock(blocks[k]);
+      var el = tpl.content.firstElementChild;
+      frag.appendChild(el || document.createElement("p"));
+    }
+    pv.insertBefore(frag, kids[a] || null);
+  }
+  if((blocks.length > 300) !== (old.length > 300)) pv.classList.toggle("virtual", blocks.length > 300);
+  prevBlocks = blocks;
+}
+
+/* Repaint per frame while that is cheap; on very large documents the running
+   cost estimate crosses 12ms and typing bursts get coalesced instead. */
+var frame = 0, lazyT = 0, cost = 0;
+function runRender(){
+  frame = 0;
+  clearTimeout(lazyT); lazyT = 0;
+  var t0 = performance.now();
+  render(ed.value);
+  cost = cost * 0.6 + (performance.now() - t0) * 0.4;
+}
+function schedule(){
+  if(cost > 12){
+    if(frame){ cancelAnimationFrame(frame); frame = 0; }
+    clearTimeout(lazyT);
+    lazyT = setTimeout(runRender, 80);
+    return;
+  }
+  if(!frame) frame = requestAnimationFrame(runRender);
+}
+
+/* stats + autosave run on idle, never on the typing path */
+var statT = 0, saveT = 0;
+function updateStats(){
+  var v = ed.value, w = 0, inw = false, lines = 1, i, c;
+  for(i=0;i<v.length;i++){
+    c = v.charCodeAt(i);
+    if(c===10){ lines++; inw = false; continue; }
+    if(c===32 || c===9 || c===13){ inw = false; continue; }
+    if(!inw){ inw = true; w++; }
+  }
+  $("sWords").textContent = w + (w===1 ? " word" : " words");
+  $("sChars").textContent = v.length + " chars";
+  $("sLines").textContent = lines + (lines===1 ? " line" : " lines");
+  $("sRead").textContent = Math.max(1, Math.round(w/220)) + " min read";
+}
+function idleWork(){
+  clearTimeout(statT);
+  statT = setTimeout(updateStats, 160);
+  if(HOST) return;                 /* hosted: the real file is the backing store */
+  clearTimeout(saveT);
+  saveT = setTimeout(function(){
+    try{
+      localStorage.setItem("md.doc", ed.value);
+      localStorage.setItem("md.name", doc.name);
+    }catch(e){}
+  }, 500);
+}
+function onInput(){ schedule(); setDirty(true); idleWork(); }
+ed.addEventListener("input", onInput);
+
+/* ---------------- document state ---------------- */
+var doc = { name:"untitled.md", handle:null, dirty:false };
+var HOST = window.__HOST__ || null;   /* set by MarkdownEditor.exe when hosted */
+function setName(n){
+  doc.name = n;
+  nameEl.firstChild.textContent = n;
+  document.title = n + " - MD";
+}
+function setDirty(d){
+  if(doc.dirty === d) return;
+  doc.dirty = d;
+  dot.classList.toggle("on", d);
+}
+var toastT = 0;
+function toast(msg){
+  var t = $("toast");
+  t.textContent = msg; t.classList.add("on");
+  clearTimeout(toastT);
+  toastT = setTimeout(function(){ t.classList.remove("on"); }, 1500);
+}
+function loadText(text, name){
+  ed.value = text;
+  if(name) setName(name);
+  cache.clear();
+  prevBlocks = [];
+  pv.textContent = "";
+  render(text);
+  updateStats();
+  setDirty(false);
+  ed.scrollTop = 0; pv.scrollTop = 0;
+  idleWork();
+}
+
+/* ---------------- files ---------------- */
+var FS_TYPES = [{ description:"Markdown", accept:{ "text/markdown":[".md",".markdown",".mdown",".mkd",".txt"] } }];
+var canFS = typeof window.showSaveFilePicker === "function";
+
+/* ---- hosted mode: the native launcher does the file I/O ---- */
+function hostReq(path, method, body){
+  return fetch(path, {
+    method: method || "GET",
+    headers: { "X-Token": HOST.token },
+    body: body
+  });
+}
+async function hostLoad(r){
+  if(r.status === 204) return false;                 /* dialog cancelled */
+  if(!r.ok) throw new Error("HTTP " + r.status);
+  var text = await r.text();
+  doc.path = decodeURIComponent(r.headers.get("X-Path") || "");
+  loadText(text, decodeURIComponent(r.headers.get("X-Name") || "untitled.md"));
+  return true;
+}
+async function hostOpen(){
+  try{
+    if(await hostLoad(await hostReq("/open"))) toast("Opened " + doc.name);
+  }catch(e){ toast("Could not open: " + e.message); }
+}
+async function hostSave(saveAs){
+  try{
+    if(saveAs || !doc.path){
+      var r = await hostReq("/saveas?name=" + encodeURIComponent(doc.name));
+      if(r.status === 204) return;                   /* cancelled */
+      doc.path = decodeURIComponent(r.headers.get("X-Path") || "");
+      setName(decodeURIComponent(r.headers.get("X-Name") || doc.name));
+    }
+    var w = await hostReq("/doc", "PUT", ed.value);
+    if(!w.ok) throw new Error(await w.text());
+    setDirty(false);
+    toast("Saved");
+  }catch(e){ toast("Could not save: " + e.message); }
+}
+
+function download(){
+  var blob = new Blob([ed.value], { type:"text/markdown;charset=utf-8" });
+  var a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = doc.name || "untitled.md";
+  a.click();
+  setTimeout(function(){ URL.revokeObjectURL(a.href); }, 4000);
+  setDirty(false);
+  toast("Downloaded " + a.download);
+}
+async function openFile(){
+  if(HOST) return hostOpen();
+  if(typeof window.showOpenFilePicker === "function"){
+    try{
+      var picked = await window.showOpenFilePicker({ types:FS_TYPES, multiple:false });
+      var h = picked[0], f = await h.getFile();
+      doc.handle = h;
+      loadText(await f.text(), f.name);
+      toast("Opened " + f.name);
+      return;
+    }catch(e){ if(e && e.name === "AbortError") return; }
+  }
+  $("fi").click();
+}
+async function saveFile(saveAs){
+  if(HOST) return hostSave(saveAs);
+  if(canFS){
+    try{
+      if(saveAs || !doc.handle)
+        doc.handle = await window.showSaveFilePicker({ suggestedName:doc.name, types:FS_TYPES });
+      var w = await doc.handle.createWritable();
+      await w.write(ed.value);
+      await w.close();
+      setName(doc.handle.name);
+      setDirty(false);
+      toast("Saved");
+      return;
+    }catch(e){
+      if(e && e.name === "AbortError") return;
+      if(e && e.name === "NotAllowedError"){ toast("Permission denied"); return; }
+    }
+  }
+  download();
+}
+$("fi").addEventListener("change", function(e){
+  var f = e.target.files[0];
+  if(!f) return;
+  var r = new FileReader();
+  r.onload = function(){ doc.handle = null; loadText(String(r.result), f.name); toast("Opened " + f.name); };
+  r.readAsText(f);
+  e.target.value = "";
+});
+window.addEventListener("dragover", function(e){ e.preventDefault(); });
+window.addEventListener("drop", function(e){
+  e.preventDefault();
+  var f = e.dataTransfer && e.dataTransfer.files[0];
+  if(!f) return;
+  var r = new FileReader();
+  r.onload = function(){ doc.handle = null; loadText(String(r.result), f.name); };
+  r.readAsText(f);
+});
+window.addEventListener("beforeunload", function(e){
+  if(doc.dirty){ e.preventDefault(); e.returnValue = ""; }
+});
+
+/* Export: reuse this file's own stylesheet so output looks identical. */
+function exportHtml(){
+  var css = document.querySelector("style").textContent;
+  var title = doc.name.replace(/\.[^.]+$/, "");
+  var out = '<!DOCTYPE html><html lang="en"><head><meta charset="utf-8">' +
+    '<meta name="viewport" content="width=device-width,initial-scale=1"><title>' +
+    attr(title) + "</title><style>" + css +
+    "body{display:block;height:auto;overflow:auto}#pv{height:auto;overflow:visible;padding:32px 20px}" +
+    "#pv .cp{display:none}</style></head><body><div id=\"pv\">" +
+    pv.innerHTML + "</div></body></html>";
+  var blob = new Blob([out], { type:"text/html;charset=utf-8" });
+  var a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = title + ".html";
+  a.click();
+  setTimeout(function(){ URL.revokeObjectURL(a.href); }, 4000);
+  toast("Exported HTML");
+}
+
+/* ---------------- editor commands (native undo preserved) ---------------- */
+function put(text){
+  var s = ed.selectionStart, e = ed.selectionEnd, v = ed.value;
+  var want = v.slice(0,s) + text + v.slice(e), ok = false;
+  /* execCommand keeps the native undo stack; verify it actually applied */
+  try{ ok = document.execCommand("insertText", false, text); }catch(err){}
+  if(!ok || ed.value !== want){
+    ed.value = want;
+    ed.selectionStart = ed.selectionEnd = s + text.length;
+  }
+  onInput();
+}
+function wrap(pre, post, ph){
+  var s = ed.selectionStart, e = ed.selectionEnd, sel = ed.value.slice(s,e);
+  var v = ed.value;
+  if(!sel && ph === undefined) ph = "";
+  if(v.slice(s-pre.length, s) === pre && v.slice(e, e+post.length) === post){
+    ed.setSelectionRange(s-pre.length, e+post.length);
+    put(sel);
+    ed.setSelectionRange(s-pre.length, e-pre.length);
+    return;
+  }
+  var body = sel || ph || "";
+  put(pre + body + post);
+  if(sel) ed.setSelectionRange(s+pre.length, s+pre.length+body.length);
+  else ed.setSelectionRange(s+pre.length, s+pre.length+body.length);
+}
+function lineRange(){
+  var v = ed.value;
+  var s = v.lastIndexOf("\n", ed.selectionStart-1) + 1;
+  var e = v.indexOf("\n", ed.selectionEnd);
+  if(e < 0) e = v.length;
+  return [s,e];
+}
+function prefixLines(fn){
+  var ss = ed.selectionStart, se = ed.selectionEnd, collapsed = ss === se;
+  var r = lineRange(), before = ed.value.slice(r[0], r[1]);
+  var lines = before.split("\n");
+  for(var i=0;i<lines.length;i++) lines[i] = fn(lines[i], i);
+  var after = lines.join("\n");
+  if(after === before) return;
+  ed.setSelectionRange(r[0], r[1]);
+  put(after);
+  if(collapsed){
+    /* single line touched: the whole delta applies before the caret */
+    var p = Math.max(r[0], Math.min(r[0] + after.length, ss + after.length - before.length));
+    ed.setSelectionRange(p, p);
+  } else {
+    ed.setSelectionRange(r[0], r[0] + after.length);
+  }
+}
+function togglePrefix(re, add){
+  prefixLines(function(l){ return re.test(l) ? l.replace(re,"") : add + l; });
+}
+var FMT = {
+  b: function(){ wrap("**","**","bold"); },
+  i: function(){ wrap("*","*","italic"); },
+  c: function(){ wrap("`","`","code"); },
+  h: function(){ prefixLines(function(l){
+        var m = /^(#{1,6}) /.exec(l);
+        if(!m) return "# " + l;
+        return m[1].length >= 6 ? l.slice(7) : "#" + l;
+      }); },
+  q: function(){ togglePrefix(/^ {0,3}> ?/, "> "); },
+  l: function(){ togglePrefix(/^([ \t]*)[-*+] /, "- "); },
+  k: function(){
+        var s = ed.selectionStart, e = ed.selectionEnd, sel = ed.value.slice(s,e);
+        if(/^https?:\/\//i.test(sel)){ put("[](" + sel + ")"); ed.setSelectionRange(s+1, s+1); }
+        else { put("[" + sel + "](url)"); ed.setSelectionRange(s+sel.length+3, s+sel.length+6); }
+      }
+};
+
+/* ---------------- keyboard ---------------- */
+var RE_ITEM = /^([ \t]*)(?:([-*+])|(\d{1,9})([.)]))([ \t]+)(\[[ xX]\][ \t]+)?/;
+ed.addEventListener("keydown", function(e){
+  var mod = e.ctrlKey || e.metaKey;
+  if(mod && !e.altKey){
+    var k = e.key.toLowerCase();
+    if(k === "s"){ e.preventDefault(); saveFile(e.shiftKey); return; }
+    if(k === "o"){ e.preventDefault(); openFile(); return; }
+    if(k === "b"){ e.preventDefault(); FMT.b(); return; }
+    if(k === "i"){ e.preventDefault(); FMT.i(); return; }
+    if(k === "k"){ e.preventDefault(); FMT.k(); return; }
+    if(k === "e"){ e.preventDefault(); FMT.c(); return; }
+    return;
+  }
+  if(e.key === "Tab"){
+    e.preventDefault();
+    var r = lineRange();
+    var onList = isList(ed.value.slice(r[0], r[1]).split("\n")[0]);
+    if(e.shiftKey) prefixLines(function(l){ return l.replace(/^(?: {1,2}|\t)/, ""); });
+    else if(ed.selectionStart === ed.selectionEnd && !onList) put("  ");
+    else prefixLines(function(l){ return l.trim() ? "  " + l : l; });
+    return;
+  }
+  if(e.key === "Enter" && !e.shiftKey && !mod){
+    if(ed.selectionStart !== ed.selectionEnd) return;
+    var v = ed.value, p = ed.selectionStart;
+    var st = v.lastIndexOf("\n", p-1) + 1;
+    var line = v.slice(st, p);
+    var m = RE_ITEM.exec(line);
+    if(!m) return;
+    e.preventDefault();
+    if(line.length === m[0].length){          /* empty item -> end the list */
+      ed.setSelectionRange(st, p);
+      put("");
+      ed.setSelectionRange(st, st);
+      return;
+    }
+    var marker = m[2] ? m[2] : (parseInt(m[3],10) + 1) + m[4];
+    put("\n" + m[1] + marker + m[5] + (m[6] ? "[ ] " : ""));
+    return;
+  }
+});
+
+/* ---------------- toolbar / modes / theme ---------------- */
+$("bar").addEventListener("click", function(e){
+  var b = e.target.closest("button");
+  if(!b) return;
+  var f = b.getAttribute("data-fmt");
+  if(f && FMT[f]){ ed.focus(); FMT[f](); return; }
+  var m = b.getAttribute("data-mode");
+  if(m) setMode(m);
+});
+$("bNew").onclick = function(){
+  if(doc.dirty && !confirm("Discard unsaved changes?")) return;
+  doc.handle = null;
+  doc.path = "";
+  loadText("", "untitled.md");
+  ed.focus();
+};
+$("bOpen").onclick = openFile;
+$("bSave").onclick = function(e){ saveFile(e.shiftKey); };
+$("bExp").onclick = exportHtml;
+
+function setMode(m){
+  document.body.className = "m-" + m;
+  var bs = $("modes").children;
+  for(var i=0;i<bs.length;i++) bs[i].classList.toggle("on", bs[i].getAttribute("data-mode") === m);
+  try{ localStorage.setItem("md.mode", m); }catch(err){}
+  if(m !== "view") ed.focus();
+}
+function setTheme(t){
+  document.documentElement.setAttribute("data-theme", t);
+  try{ localStorage.setItem("md.theme", t); }catch(e){}
+}
+$("bTheme").onclick = function(){
+  var cur = document.documentElement.getAttribute("data-theme");
+  if(!cur) cur = matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+  setTheme(cur === "dark" ? "light" : "dark");
+};
+document.addEventListener("keydown", function(e){
+  if((e.ctrlKey || e.metaKey) && e.altKey){
+    var k = e.key.toLowerCase();
+    if(k === "1"){ e.preventDefault(); setMode("edit"); }
+    else if(k === "2"){ e.preventDefault(); setMode("split"); }
+    else if(k === "3"){ e.preventDefault(); setMode("view"); }
+    else if(k === "d"){ e.preventDefault(); $("bTheme").onclick(); }
+  }
+});
+
+/* ---------------- copy buttons (one delegated listener) ---------------- */
+pv.addEventListener("click", function(e){
+  var b = e.target.closest(".cp");
+  if(!b) return;
+  var code = b.parentNode.querySelector("code");
+  navigator.clipboard.writeText(code.textContent).then(function(){
+    b.textContent = "copied";
+    setTimeout(function(){ b.textContent = "copy"; }, 1200);
+  }, function(){ toast("Clipboard blocked"); });
+});
+
+/* ---------------- proportional scroll sync ---------------- */
+var lock = 0;
+function sync(from, to){
+  return function(){
+    if(lock === 2) return;
+    lock = 1;
+    var fh = from.scrollHeight - from.clientHeight;
+    var th = to.scrollHeight - to.clientHeight;
+    if(fh > 0 && th > 0) to.scrollTop = (from.scrollTop / fh) * th;
+    requestAnimationFrame(function(){ lock = 0; });
+  };
+}
+var edSync = sync(ed, pv), pvSync = sync(pv, ed);
+ed.addEventListener("scroll", function(){ if(!lock) edSync(); }, { passive:true });
+pv.addEventListener("scroll", function(){ if(!lock) pvSync(); }, { passive:true });
+
+/* ---------------- splitter ---------------- */
+(function(){
+  var g = $("grip"), dragging = false;
+  g.addEventListener("pointerdown", function(e){
+    dragging = true; g.setPointerCapture(e.pointerId); e.preventDefault();
+  });
+  g.addEventListener("pointermove", function(e){
+    if(!dragging) return;
+    var r = main.getBoundingClientRect();
+    var p = (e.clientX - r.left) / r.width;
+    p = Math.max(0.15, Math.min(0.85, p));
+    main.style.setProperty("--split", (p*100).toFixed(2) + "%");
+    try{ localStorage.setItem("md.split", String(p)); }catch(err){}
+  });
+  g.addEventListener("pointerup", function(){ dragging = false; });
+  g.addEventListener("dblclick", function(){
+    main.style.setProperty("--split", "50%");
+    try{ localStorage.setItem("md.split", "0.5"); }catch(err){}
+  });
+})();
+
+/* ---------------- boot ---------------- */
+var WELCOME = [
+  "# Markdown",
+  "",
+  "A single file. No build step, no network, no dependencies.",
+  "Everything renders as you type - only the block under the cursor is re-drawn.",
+  "",
+  "## Keys",
+  "",
+  "| Key | Does |",
+  "| --- | --- |",
+  "| Ctrl+S / Ctrl+Shift+S | Save / Save As |",
+  "| Ctrl+O | Open |",
+  "| Ctrl+B / Ctrl+I | Bold / Italic |",
+  "| Ctrl+K | Link |",
+  "| Ctrl+E | Inline code |",
+  "| Tab / Shift+Tab | Indent / outdent |",
+  "| Ctrl+Alt+1/2/3 | Edit / Split / Read |",
+  "| Ctrl+Alt+D | Toggle theme |",
+  "",
+  "## What it knows",
+  "",
+  "- **bold**, *italic*, ~~strike~~, ==highlight==, `code`",
+  "- nested lists",
+  "  1. ordered",
+  "  2. and back",
+  "- [x] task lists",
+  "- [ ] that stay in sync",
+  "",
+  "> Blockquotes nest whole blocks.",
+  ">",
+  "> - including lists",
+  "",
+  "```js",
+  "// fenced code, with a copy button on hover",
+  "const blocks = split(text);",
+  "for (const b of changed(blocks)) repaint(b);",
+  "```",
+  "",
+  "Links like https://commonmark.org autolink. Images work too.",
+  "",
+  "---",
+  "",
+  "Drag a `.md` file onto this window to open it. Your work autosaves locally."
+].join("\n");
+
+(function init(){
+  var t = null, mode = null, split = null, saved = null, name = null;
+  try{
+    t = localStorage.getItem("md.theme");
+    mode = localStorage.getItem("md.mode");
+    split = localStorage.getItem("md.split");
+    saved = localStorage.getItem("md.doc");
+    name = localStorage.getItem("md.name");
+  }catch(e){}
+  if(t) document.documentElement.setAttribute("data-theme", t);
+  if(split) main.style.setProperty("--split", (parseFloat(split)*100).toFixed(2) + "%");
+  if(mode) setMode(mode); else setMode("split");
+
+  if(HOST){
+    /* hosted by MarkdownEditor.exe: load the file it was launched with */
+    hostReq("/doc").then(hostLoad).catch(function(e){
+      loadText("", "untitled.md");
+      toast("Could not read file: " + e.message);
+    });
+    /* heartbeat: the launcher exits once this window is gone */
+    setInterval(function(){ hostReq("/ping").catch(function(){}); }, 5000);
+    window.addEventListener("pagehide", function(){
+      try{ fetch("/bye", { headers:{ "X-Token":HOST.token }, keepalive:true }); }catch(e){}
+    });
+    $("sHint").textContent = "Ctrl+S saves in place - Ctrl+O opens another file";
+  } else {
+    loadText(saved !== null ? saved : WELCOME, name || "untitled.md");
+    if(!canFS) $("sHint").textContent = "Ctrl+S downloads a copy - this browser has no file-write access";
+  }
+  ed.focus();
+})();
+</script>
+</body>
+</html>
